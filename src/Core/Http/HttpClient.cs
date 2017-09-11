@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 
 namespace NuGet
 {
@@ -11,8 +13,9 @@ namespace NuGet
 
         private static ICredentialProvider _credentialProvider;
         private Uri _uri;
+		private ILogger _logger;
 
-        public HttpClient(Uri uri)
+		public HttpClient(Uri uri)
         {
             if (uri == null)
             {
@@ -21,6 +24,18 @@ namespace NuGet
 
             _uri = uri;
         }
+
+		public ILogger Logger
+		{
+			get
+			{
+				return _logger ?? NullLogger.Instance;
+			}
+			set
+			{
+				_logger = value;
+			}
+		}
 
         public string UserAgent
         {
@@ -114,6 +129,16 @@ namespace NuGet
 
         private void InitializeRequestProperties(WebRequest request)
         {
+            ServicePointManager.ServerCertificateValidationCallback += delegate (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+            {
+                Logger.Log(MessageLevel.Info, string.Format("AVERTISSEMENT: NOT TRUSTED CERTIFICATE - {0} from {1}", 
+                                                            sslPolicyErrors, 
+                                                            request.RequestUri));
+
+                // Always accept
+                return true;
+            };
+
             var httpRequest = request as HttpWebRequest;
             if (httpRequest != null)
             {
